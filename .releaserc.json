@@ -4,6 +4,45 @@
     ["@semantic-release/commit-analyzer", { "preset": "conventionalcommits" }],
     ["@semantic-release/release-notes-generator", { "preset": "conventionalcommits" }],
     [
+      "semantic-release-replace-plugin",
+      {
+        "replacements": [
+          {
+            "files": ["lib/grommunio_admin_api/version.rb"],
+            "from": "^  VERSION = \"[^\"]+\"$",
+            "to": "  VERSION = \"${nextRelease.version}\"",
+            "results": [
+              {
+                "file": "lib/grommunio_admin_api/version.rb",
+                "hasChanged": true,
+                "numMatches": 1,
+                "numReplacements": 1
+              }
+            ],
+            "countMatches": true
+          },
+          {
+            "files": ["Gemfile.lock"],
+            "from": "^    grommunio_admin_api \\([^)]+\\)$",
+            "to": "    grommunio_admin_api (${nextRelease.version})",
+            "results": [
+              {
+                "file": "Gemfile.lock",
+                "hasChanged": true,
+                "numMatches": 1,
+                "numReplacements": 1
+              }
+            ],
+            "countMatches": true
+          }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/git",
+      { "assets": ["lib/grommunio_admin_api/version.rb", "Gemfile.lock"] }
+    ],
+    [
       "@semantic-release/github",
       {
         "successComment": false,
