@@ -7,6 +7,7 @@ module GrommunioAdminApi
     class Users < Base
       # GET /domains/{domainID}/users
       #
+      # @param username [String, nil] exact username filter
       # @param properties [String, nil] comma-separated list of user
       #   properties to include in the response (e.g. "displayname,smtpaddress")
       # @return [List<Resources::User>]
@@ -17,6 +18,15 @@ module GrommunioAdminApi
       end
 
       # GET /domains/{domainID}/users/{userID}
+      #
+      # The upstream endpoint returns no property bag, regardless of level.
+      # Use {#list} or {#all} with properties: to read properties. For a
+      # single user, pass username: as an exact filter on those list calls.
+      #
+      # @example Read a quota for one user through the list endpoint
+      #   user = client.users.list(domain_id: 12, username: "user@example.com",
+      #                            properties: "storagequotalimit").first
+      #   user&.property(:storagequotalimit)
       #
       # @return [Resources::User]
       def get(domain_id:, user_id:, level: nil)
