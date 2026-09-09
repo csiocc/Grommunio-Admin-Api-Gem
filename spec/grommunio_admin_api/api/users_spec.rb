@@ -35,17 +35,28 @@ RSpec.describe GrommunioAdminApi::Api::Users do
       expect(result.first.username).to eq("user@asc-test.ch")
     end
 
-    it "forwards the properties filter" do
+    it "reads properties for an exact username filter" do
       list = stub_get("/domains/12/users", { "count" => 1, "data" => [user_payload] },
-                      query: { "properties" => "displayname,smtpaddress" })
+                      query: { "username" => "user@asc-test.ch", "properties" => "displayname,smtpaddress" })
 
-      client.users.list(domain_id: 12, properties: "displayname,smtpaddress")
+      user = client.users.list(domain_id: 12, username: "user@asc-test.ch",
+                               properties: "displayname,smtpaddress").first
 
       expect(list).to have_been_requested.once
+      expect(user.property(:displayname)).to eq("Test User")
     end
   end
 
   describe "#get" do
+    it "returns nil for properties absent from a single-user response" do
+      stub_get("/domains/12/users/44", user_payload.except("properties"), query: { "level" => "2" })
+
+      user = client.users.get(domain_id: 12, user_id: 44, level: 2)
+
+      expect(user.properties).to be_nil
+      expect(user.property(:storagequotalimit)).to be_nil
+    end
+
     it "gets one user with all declared fields and raw preservation" do
       stub_get("/domains/12/users/44", user_payload, query: { "level" => "2" })
 
@@ -122,6 +133,7 @@ RSpec.describe GrommunioAdminApi::Api::Users do
         properties: { "displayname" => "Test User" }, roles: [],
         maildir: "/var/lib/gromox/user/1/2", lang: "de_DE", homeserver: nil
       )
+      expect(user.property(:displayname)).to eq("Test User")
       expect_no_http_requests
     end
   end

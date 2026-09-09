@@ -31,11 +31,26 @@ module GrommunioAdminApi
       field :ldap_id, key: "ldapID"
       field :aliases
       field :altnames
+
+      # @!attribute [r] properties
+      #   Property bag populated by list/all responses requested with properties:.
+      #   Single-user GET responses leave this field nil. An empty hash is normal
+      #   for users without quotas and shared mailboxes.
+      #   @return [Hash{String => Object}, nil]
       field :properties
+
       field :roles
       field :maildir
       field :lang
       field :homeserver
+
+      # Reads a value from the returned property bag without fetching more data.
+      #
+      # @param name [String, Symbol] API property name, e.g. :storagequotalimit
+      # @return [Object, nil] the value, or nil if the bag or key is missing
+      def property(name)
+        properties&.[](name.to_s)
+      end
 
       def normal?
         status == STATUS_NORMAL
