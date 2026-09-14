@@ -21,6 +21,13 @@ RSpec.describe "live V1 reads", :live do
     expect(domain.id).to eq(live_domain_id)
     expect(domain.organization_id).to eq(live_organization_id)
 
+    # slow on purpose: the server waits for resolver timeouts on every record
+    # the domain does not have. A 500 "DNS check disabled by configuration"
+    # here is a finding about the instance, not something to rescue.
+    dns_check = client.domains.dns_check(domain_id: live_domain_id)
+    expect(dns_check).to be_a(GrommunioAdminApi::Resources::DnsCheck)
+    expect(dns_check.key?("mxRecords")).to be(true)
+
     users = client.users.list(domain_id: live_domain_id, limit: 2)
     expect(users.size).to be <= 2
     users.each { |user| expect(user.id).to be_a(Integer) }

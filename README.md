@@ -36,6 +36,16 @@ client.domains.all(organization_ids: [12])     # lazy pagination over all pages
 client.users.list(domain_id: 12, level: 2)     # List<User>
 client.users.get(domain_id: 12, user_id: 44)   # User
 client.users.all(domain_id: 12, level: 2)      # every user of one domain
+
+# Raw DNS lookup results of one domain, from the server's own resolver
+# (internal_dns) and the external resolvers (external_dns). Nothing is
+# evaluated upstream; nil means unresolvable. Slow by nature (resolver
+# timeouts on missing records), so not a call to make in a loop.
+check = client.domains.dns_check(domain_id: 12)
+check.mx_records.external_dns   # => "203.0.113.10"
+check.mx_records.mx_domain      # => "mail.example.ch."
+check.txt.external_dns          # => "\"v=spf1 mx -all\""  (SPF; the key stays "txt" as upstream)
+check.pop3_srv.external_dns     # => nil
 ```
 
 ### Safety modes
@@ -124,6 +134,7 @@ token cannot be logged by accident.
 | `client.organizations.get` | `GET /system/orgs/{ID}` |
 | `client.domains.list` | `GET /system/domains` |
 | `client.domains.get` | `GET /system/domains/{domainID}` |
+| `client.domains.dns_check` | `GET /domains/{domainID}/dnsCheck` |
 | `client.users.list` | `GET /domains/{domainID}/users` |
 | `client.users.get` | `GET /domains/{domainID}/users/{userID}` |
 | `client.ldap.search` | `GET /domains/ldap/search` |
