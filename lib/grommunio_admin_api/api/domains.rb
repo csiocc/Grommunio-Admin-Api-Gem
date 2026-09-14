@@ -27,6 +27,19 @@ module GrommunioAdminApi
         Resources::Domain.new(connection.request(:get, "/system/domains/#{domain_id}"))
       end
 
+      # GET /domains/{domainID}/dnsCheck
+      #
+      # The server resolves about 25 records itself and waits for a resolver
+      # timeout on every record that is not set up, so expect seconds rather
+      # than milliseconds. A disabled check (dns.disabled in the server
+      # config) answers 500 and arrives as ServerError with server_message
+      # "DNS check disabled by configuration".
+      #
+      # @return [Resources::DnsCheck]
+      def dns_check(domain_id:)
+        Resources::DnsCheck.new(connection.request(:get, "/domains/#{domain_id}/dnsCheck"))
+      end
+
       # Lazily enumerates every domain across all pages, applying the same
       # filters as #list.
       #
