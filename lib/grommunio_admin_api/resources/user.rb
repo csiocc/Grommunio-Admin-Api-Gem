@@ -40,6 +40,13 @@ module GrommunioAdminApi
       field :properties
 
       field :roles
+
+      # ID of the mailing list this row belongs to, nil for every other user.
+      # A mailing list has its own users row, and importUser answers with that
+      # row when the imported LDAP object is a group; this is the ID
+      # Api::MailingLists expects, not #id.
+      field :mailing_list_id, key: "mlist"
+
       field :maildir
       field :lang
       field :homeserver
@@ -70,6 +77,10 @@ module GrommunioAdminApi
 
       def contact?
         status == STATUS_CONTACT
+      end
+
+      def mailing_list?
+        !mailing_list_id.nil?
       end
 
       # Future or undocumented upstream status values stay representable.

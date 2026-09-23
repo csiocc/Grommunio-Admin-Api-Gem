@@ -19,6 +19,14 @@ RSpec.describe GrommunioAdminApi::Api::Ldap do
 
       expect_no_http_requests
     end
+
+    it "rejects downsync_domain before any socket access, including login" do
+      expect do
+        client.ldap.downsync_domain(domain_id: 12)
+      end.to raise_error(GrommunioAdminApi::ReadOnlyModeError)
+
+      expect_no_http_requests
+    end
   end
 
   describe "sync_only allowlist" do
@@ -34,18 +42,23 @@ RSpec.describe GrommunioAdminApi::Api::Ldap do
                .to_return(status: 201, body: '{"ID":44}')
       downsync = stub_request(:put, "#{ApiHelpers::BASE}/domains/12/users/44/downsync")
                  .to_return(status: 200, body: '{"ID":44}')
+      domain_downsync = stub_request(:post, "#{ApiHelpers::BASE}/domains/12/ldap/downsync")
+                        .to_return(status: 202, body: '{"taskID":17}')
 
       connection.request(:post, "/domains/ldap/importUser")
       connection.request(:put, "/domains/12/users/44/downsync")
+      connection.request(:post, "/domains/12/ldap/downsync")
 
       expect(import).to have_been_requested.once
       expect(downsync).to have_been_requested.once
+      expect(domain_downsync).to have_been_requested.once
     end
 
     [
       [:post, "/system/domains"],
       [:patch, "/domains/12/users/44"],
-      [:post, "/domains/12/ldap/downsync"],
+      [:patch, "/domains/12/mlists/7"],
+      [:post, "/domains/ldap/downsync"],
       [:post, "/system/orgs/12/ldap/downsync"],
       [:delete, "/domains/12/users/44"]
     ].each do |method, path|
@@ -110,6 +123,23 @@ RSpec.describe GrommunioAdminApi::Api::Ldap do
       expect(import).to have_been_requested.once
       expect(user).to be_a(GrommunioAdminApi::Resources::User)
       expect(user.username).to eq("test.user@asc-test.ch")
+      expect(user).not_to be_mailing_list
+    end
+
+    it "returns the list's own users row, pointing to the mailing list, when the LDAP object is a group" do
+      stub_login
+      stub_request(:post, "#{ApiHelpers::BASE}/domains/ldap/importUser")
+        .with(query: { "ID" => "opaque-group-id" })
+        .to_return(status: 200, body: JSON.generate(
+          "ID" => 30, "username" => "ccc_gro_board@example.ch", "domainID" => 4, "orgID" => 3, "mlist" => 7,
+          "status" => 0, "properties" => { "displayname" => "ccc_gro_board", "displaytypeex" => 1 }
+        ))
+
+      row = client.ldap.import_user(ldap_object_id: "opaque-group-id")
+
+      expect(row).to be_a(GrommunioAdminApi::Resources::User)
+      expect(row).to be_mailing_list
+      expect(row).to have_attributes(id: 30, mailing_list_id: 7)
     end
 
     it "returns a generic resource for a message-only response without losing data" do
@@ -122,6 +152,38 @@ RSpec.describe GrommunioAdminApi::Api::Ldap do
 
       expect(result).to be_an_instance_of(GrommunioAdminApi::Resource)
       expect(result["message"]).to eq("contact import queued")
+    end
+  end
+
+  describe "#downsync_domain" do
+    let(:client) { build_client(mode: :sync_only) }
+
+    it "starts the domain downsync without import or language and reports a running task" do
+      stub_login
+      downsync = stub_request(:post, "#{ApiHelpers::BASE}/domains/12/ldap/downsync")
+                 .with(query: {}, headers: { "X-Csrf-Token" => ApiHelpers::CSRF })
+                 .to_return(status: 202, body: JSON.generate("message" => "Created background task #17",
+                                                             "taskID" => 17))
+
+      result = client.ldap.downsync_domain(domain_id: 12)
+
+      expect(downsync).to have_been_requested.once
+      expect(result).to be_a(GrommunioAdminApi::Resources::LdapSync)
+      expect(result).to be_running
+      expect(result.task_id).to eq(17)
+    end
+
+    it "returns the per-object results of a task that finished within the wait time" do
+      stub_login
+      entry = { "ID" => 62, "username" => "ccc_gro_board@example.ch", "code" => 200,
+                "message" => "member list unchanged" }
+      stub_request(:post, "#{ApiHelpers::BASE}/domains/12/ldap/downsync")
+        .to_return(status: 200, body: JSON.generate("message" => "Synchronized 1 object", "data" => [entry]))
+
+      result = client.ldap.downsync_domain(domain_id: 12)
+
+      expect(result).not_to be_running
+      expect(result.data).to eq([entry])
     end
   end
 

@@ -6,7 +6,7 @@ module GrommunioAdminApi
   #
   # Not thread-safe: use one client per service or job.
   class Client
-    attr_reader :mode, :organizations, :domains, :users, :ldap
+    attr_reader :mode, :organizations, :domains, :users, :ldap, :mailing_lists
 
     # The mutation policy is validated and enforced by Connection.
     def initialize(base_url:, username: nil, password: nil, mode: :read_only, **)
@@ -16,6 +16,7 @@ module GrommunioAdminApi
       @domains = Api::Domains.new(@connection)
       @users = Api::Users.new(@connection)
       @ldap = Api::Ldap.new(@connection)
+      @mailing_lists = Api::MailingLists.new(@connection)
     end
 
     # POST /login — establishes the JWT-cookie and CSRF session.
