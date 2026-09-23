@@ -54,7 +54,8 @@ Three modes, and no generic `get`/`request` escape hatch.
 
 - `mode: :read_only` (default) — every mutation is rejected with
   `ReadOnlyModeError` before any socket access, except the login itself.
-- `mode: :sync_only` — permits only the two targeted sync writes below;
+- `mode: :sync_only` — permits only the three sync writes below (targeted
+  import, single-object downsync, domain downsync);
   any other write raises `SyncOperationNotAllowedError` before HTTP.
 - `mode: :full_write` — permits every mutation this gem exposes a method for.
   It carries **no** operation allowlist, so the per-area API classes are the
@@ -76,6 +77,24 @@ user = sync_client.ldap.import_user(
   language: "de_DE"
 )
 sync_client.users.downsync(domain_id: 12, user_id: user.id)
+
+# The only HTTP path that updates the members of an existing mailing list.
+# Org-wide and asynchronous; never imports new objects.
+sync = sync_client.ldap.downsync_domain(domain_id: 12)
+sync.running? # => true while the background task has not finished (202, sync.task_id)
+```
+
+An LDAP group imported through `import_user` comes back as the list's own
+users row: a `Resources::User` with `mailing_list?` true, whose
+`mailing_list_id` is the ID `mailing_lists` expects. The import leaves the list
+open to every sender (`listPrivilege` 0); locking it down is a real write:
+
+```ruby
+row = sync_client.ldap.import_user(ldap_object_id: group_candidate.id, organization_id: 12)
+write_client.mailing_lists.update(
+  domain_id: 12, id: row.mailing_list_id,
+  list_privilege: GrommunioAdminApi::Resources::MailingList::PRIVILEGE_SPECIFIED
+) # with no specifieds, nobody may send to the list address
 ```
 
 ```ruby
@@ -139,6 +158,7 @@ token cannot be logged by accident.
 | `client.users.get` | `GET /domains/{domainID}/users/{userID}` |
 | `client.ldap.search` | `GET /domains/ldap/search` |
 | `client.ldap.import_user` | `POST /domains/ldap/importUser` |
+| `client.ldap.downsync_domain` | `POST /domains/{domainID}/ldap/downsync` |
 | `client.users.downsync` | `PUT /domains/{domainID}/users/{userID}/downsync` |
 | `client.users.create` | `POST /domains/{domainID}/users` |
 | `client.users.delegates` | `GET /domains/{domainID}/users/{userID}/delegates` |
@@ -149,6 +169,7 @@ token cannot be logged by accident.
 | `client.users.grant_store_access` | `POST /domains/{domainID}/users/{userID}/storeAccess` |
 | `client.users.set_store_access` | `PUT /domains/{domainID}/users/{userID}/storeAccess` |
 | `client.users.revoke_store_access` | `DELETE /domains/{domainID}/users/{userID}/storeAccess/{username}` |
+| `client.mailing_lists.update` | `PATCH /domains/{domainID}/mlists/{ID}` |
 
 ### Errors
 

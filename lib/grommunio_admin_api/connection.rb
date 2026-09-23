@@ -33,7 +33,8 @@ module GrommunioAdminApi
     # the gem exposes a method for, so the method surface is its only boundary.
     SYNC_ONLY_OPERATIONS = [
       [:post, %r{\A/domains/ldap/importUser\z}],
-      [:put, %r{\A/domains/\d+/users/\d+/downsync\z}]
+      [:put, %r{\A/domains/\d+/users/\d+/downsync\z}],
+      [:post, %r{\A/domains/\d+/ldap/downsync\z}]
     ].freeze
 
     REPLAYABLE_MUTATIONS = SYNC_ONLY_OPERATIONS

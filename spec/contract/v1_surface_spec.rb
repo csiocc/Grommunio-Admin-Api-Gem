@@ -15,6 +15,7 @@ V1_OPERATIONS = {
   "GET /domains/{domainID}/users/{userID}" => "Users#get",
   "GET /domains/ldap/search" => "Ldap#search",
   "POST /domains/ldap/importUser" => "Ldap#import_user",
+  "POST /domains/{domainID}/ldap/downsync" => "Ldap#downsync_domain",
   "PUT /domains/{domainID}/users/{userID}/downsync" => "Users#downsync",
   "POST /domains/{domainID}/users" => "Users#create",
   "GET /domains/{domainID}/users/{userID}/delegates" => "Users#delegates",
@@ -24,20 +25,23 @@ V1_OPERATIONS = {
   "GET /domains/{domainID}/users/{userID}/storeAccess" => "Users#store_access",
   "POST /domains/{domainID}/users/{userID}/storeAccess" => "Users#grant_store_access",
   "PUT /domains/{domainID}/users/{userID}/storeAccess" => "Users#set_store_access",
-  "DELETE /domains/{domainID}/users/{userID}/storeAccess/{username}" => "Users#revoke_store_access"
+  "DELETE /domains/{domainID}/users/{userID}/storeAccess/{username}" => "Users#revoke_store_access",
+  "PATCH /domains/{domainID}/mlists/{ID}" => "MailingLists#update"
 }.freeze
 
 # The lowest mode each mutation needs. read_only permits none of them; the
 # login is exempt because every mode has to be able to authenticate.
 MUTATION_MODES = {
   "POST /domains/ldap/importUser" => :sync_only,
+  "POST /domains/{domainID}/ldap/downsync" => :sync_only,
   "PUT /domains/{domainID}/users/{userID}/downsync" => :sync_only,
   "POST /domains/{domainID}/users" => :full_write,
   "PUT /domains/{domainID}/users/{userID}/delegates" => :full_write,
   "PUT /domains/{domainID}/users/{userID}/sendas" => :full_write,
   "POST /domains/{domainID}/users/{userID}/storeAccess" => :full_write,
   "PUT /domains/{domainID}/users/{userID}/storeAccess" => :full_write,
-  "DELETE /domains/{domainID}/users/{userID}/storeAccess/{username}" => :full_write
+  "DELETE /domains/{domainID}/users/{userID}/storeAccess/{username}" => :full_write,
+  "PATCH /domains/{domainID}/mlists/{ID}" => :full_write
 }.freeze
 
 RSpec.describe "V1 API surface" do
@@ -47,7 +51,8 @@ RSpec.describe "V1 API surface" do
       "Organizations" => GrommunioAdminApi::Api::Organizations,
       "Domains" => GrommunioAdminApi::Api::Domains,
       "Users" => GrommunioAdminApi::Api::Users,
-      "Ldap" => GrommunioAdminApi::Api::Ldap
+      "Ldap" => GrommunioAdminApi::Api::Ldap,
+      "MailingLists" => GrommunioAdminApi::Api::MailingLists
     }
   end
 
@@ -81,12 +86,13 @@ RSpec.describe "V1 API surface" do
 
   it "exposes exactly the declared public methods, and nothing else" do
     allowed = {
-      "Client" => %i[login! status about mode organizations domains users ldap],
+      "Client" => %i[login! status about mode organizations domains users ldap mailing_lists],
       "Organizations" => %i[list get all],
       "Domains" => %i[list get all dns_check],
       "Users" => %i[list get all downsync create delegates set_delegates sendas set_sendas
                     store_access grant_store_access set_store_access revoke_store_access],
-      "Ldap" => %i[search import_user]
+      "Ldap" => %i[search import_user downsync_domain],
+      "MailingLists" => %i[update]
     }
 
     api_classes.each do |name, klass|
