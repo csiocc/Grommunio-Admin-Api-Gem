@@ -113,6 +113,10 @@ mailbox = write_client.users.create(
 # before relying on the upstream ID.
 raise "no upstream ID" unless mailbox.is_a?(GrommunioAdminApi::Resources::User)
 
+# PATCH merges "properties" into the stored set; a nil value deletes one.
+write_client.users.update(domain_id: 12, user_id: mailbox.id,
+                          attributes: { "properties" => { "displayname" => "Info Desk" } })
+
 write_client.users.delegates(domain_id: 12, user_id: mailbox.id)      # => ["kim@example.com"]
 write_client.users.grant_store_access(domain_id: 12, user_id: mailbox.id, address: "kim@example.com")
 ```
@@ -161,6 +165,7 @@ token cannot be logged by accident.
 | `client.ldap.downsync_domain` | `POST /domains/{domainID}/ldap/downsync` |
 | `client.users.downsync` | `PUT /domains/{domainID}/users/{userID}/downsync` |
 | `client.users.create` | `POST /domains/{domainID}/users` |
+| `client.users.update` | `PATCH /domains/{domainID}/users/{userID}` |
 | `client.users.delegates` | `GET /domains/{domainID}/users/{userID}/delegates` |
 | `client.users.set_delegates` | `PUT /domains/{domainID}/users/{userID}/delegates` |
 | `client.users.sendas` | `GET /domains/{domainID}/users/{userID}/sendas` |

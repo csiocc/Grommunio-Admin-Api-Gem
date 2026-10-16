@@ -5,10 +5,11 @@
 # leaves a real object behind: this gem exposes no user deletion, so the
 # created mailbox has to be removed in the admin web afterwards.
 #
-# It answers the three things the OpenAPI document does not:
+# It answers the things the OpenAPI document does not:
 #   - is a password required for status 4 (shared mailbox)?
 #   - what does the 201 body actually carry?
 #   - which status code comes back for a duplicate username?
+#   - does a PATCH merge properties, and does nil delete one?
 #
 #   GROMMUNIO_LIVE_MUTATE=1 GROMMUNIO_LIVE_SHARED_MAILBOX=info.test@example.ch \
 #     bundle exec rspec spec/live/v1_write_spec.rb
@@ -55,5 +56,26 @@ RSpec.describe "live V1 writes", :live do
     warn "duplicate username -> HTTP #{duplicate.status} (#{duplicate.class}), body: #{duplicate.body.inspect}"
 
     warn "REMINDER: remove #{username} from domain #{live_domain_id} in the admin web"
+  end
+
+  # Runs against the mailbox the example above leaves behind. Proves the two
+  # PATCH semantics a consumer relies on: properties are merged, nil deletes.
+  it "merges a property into the user and deletes it again with nil" do
+    existing = client.users.list(domain_id: live_domain_id, username: username).first
+    skip "#{username} does not exist upstream - run the create example first" unless existing
+
+    read_back = lambda do
+      client.users.list(domain_id: live_domain_id, username: username,
+                        properties: "displayname,addressbookroomcapacity").first
+    end
+
+    client.users.update(domain_id: live_domain_id, user_id: existing.id,
+                        attributes: { "properties" => { "addressbookroomcapacity" => 12 } })
+    expect(read_back.call.property(:addressbookroomcapacity)).to eq(12)
+    expect(read_back.call.property(:displayname)).to eq("Live write spec")
+
+    client.users.update(domain_id: live_domain_id, user_id: existing.id,
+                        attributes: { "properties" => { "addressbookroomcapacity" => nil } })
+    expect(read_back.call.property(:addressbookroomcapacity)).to be_nil
   end
 end

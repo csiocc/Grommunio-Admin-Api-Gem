@@ -18,6 +18,7 @@ V1_OPERATIONS = {
   "POST /domains/{domainID}/ldap/downsync" => "Ldap#downsync_domain",
   "PUT /domains/{domainID}/users/{userID}/downsync" => "Users#downsync",
   "POST /domains/{domainID}/users" => "Users#create",
+  "PATCH /domains/{domainID}/users/{userID}" => "Users#update",
   "GET /domains/{domainID}/users/{userID}/delegates" => "Users#delegates",
   "PUT /domains/{domainID}/users/{userID}/delegates" => "Users#set_delegates",
   "GET /domains/{domainID}/users/{userID}/sendas" => "Users#sendas",
@@ -36,6 +37,7 @@ MUTATION_MODES = {
   "POST /domains/{domainID}/ldap/downsync" => :sync_only,
   "PUT /domains/{domainID}/users/{userID}/downsync" => :sync_only,
   "POST /domains/{domainID}/users" => :full_write,
+  "PATCH /domains/{domainID}/users/{userID}" => :full_write,
   "PUT /domains/{domainID}/users/{userID}/delegates" => :full_write,
   "PUT /domains/{domainID}/users/{userID}/sendas" => :full_write,
   "POST /domains/{domainID}/users/{userID}/storeAccess" => :full_write,
@@ -89,7 +91,7 @@ RSpec.describe "V1 API surface" do
       "Client" => %i[login! status about mode organizations domains users ldap mailing_lists],
       "Organizations" => %i[list get all],
       "Domains" => %i[list get all dns_check],
-      "Users" => %i[list get all downsync create delegates set_delegates sendas set_sendas
+      "Users" => %i[list get all downsync create update delegates set_delegates sendas set_sendas
                     store_access grant_store_access set_store_access revoke_store_access],
       "Ldap" => %i[search import_user downsync_domain],
       "MailingLists" => %i[update]

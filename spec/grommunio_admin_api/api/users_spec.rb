@@ -174,6 +174,38 @@ RSpec.describe GrommunioAdminApi::Api::Users do
     end
   end
 
+  describe "#update" do
+    it "patches the userUpdate payload as JSON and returns the updated user" do
+      attributes = { properties: { displayname: "Room 1", addressbookroomcapacity: nil } }
+      updated_payload = user_payload.merge("status" => 4, "properties" => { "displayname" => "Room 1" })
+      patch = stub_write(:patch, "/domains/12/users/44", json: attributes, body: updated_payload)
+
+      updated = build_client(mode: :full_write).users.update(domain_id: 12, user_id: 44, attributes: attributes)
+
+      expect(patch).to have_been_requested.once
+      expect(updated).to be_a(GrommunioAdminApi::Resources::User)
+      expect(updated).to have_attributes(id: 44, status: 4)
+      expect(updated.property(:displayname)).to eq("Room 1")
+    end
+
+    it "returns a generic resource for a 2xx that carries no user data" do
+      stub_write(:patch, "/domains/12/users/44", json: { status: 4 }, body: { "message" => "updated" })
+
+      updated = build_client(mode: :full_write).users.update(domain_id: 12, user_id: 44, attributes: { status: 4 })
+
+      expect(updated).to be_an_instance_of(GrommunioAdminApi::Resource)
+      expect(updated["message"]).to eq("updated")
+    end
+
+    it "is rejected before any socket access in sync_only mode" do
+      expect do
+        build_client(mode: :sync_only).users.update(domain_id: 12, user_id: 44, attributes: { status: 4 })
+      end.to raise_error(GrommunioAdminApi::SyncOperationNotAllowedError)
+
+      expect_no_http_requests
+    end
+  end
+
   describe "delegates and sendas" do
     %i[delegates sendas].each do |list|
       it "reads #{list} as plain addresses" do
