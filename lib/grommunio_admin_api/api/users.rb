@@ -71,6 +71,19 @@ module GrommunioAdminApi
         Resources.wrap_user_or_generic(body)
       end
 
+      # PATCH /domains/{domainID}/users/{userID} — changes one existing user.
+      # The server merges "properties" into the stored set: keys left out stay
+      # as they are, a nil value deletes that property.
+      #
+      # @param attributes [Hash] userUpdate payload, passed through verbatim
+      #   for the same reason as in #create
+      # @return [Resources::User] the updated object, or [Resource] for a 2xx
+      #   that carries no user data
+      def update(domain_id:, user_id:, attributes:)
+        body = connection.request(:patch, "/domains/#{domain_id}/users/#{user_id}", json: attributes)
+        Resources.wrap_user_or_generic(body)
+      end
+
       # GET /domains/{domainID}/users/{userID}/delegates — addresses allowed to
       # send mail on behalf of this mailbox.
       #
