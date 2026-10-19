@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    grommunio_admin_api (0.5.0)
+    grommunio_admin_api (0.5.1)
 
 GEM
   remote: https://rubygems.org/
