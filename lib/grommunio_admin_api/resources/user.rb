@@ -33,9 +33,9 @@ module GrommunioAdminApi
       field :altnames
 
       # @!attribute [r] properties
-      #   Property bag populated by list/all responses requested with properties:.
-      #   Single-user GET responses leave this field nil. An empty hash is normal
-      #   for users without quotas and shared mailboxes.
+      #   Property bag of a single-user GET, or of list/all responses requested
+      #   with properties:. An empty hash is normal for users without quotas and
+      #   shared mailboxes.
       #   @return [Hash{String => Object}, nil]
       field :properties
 

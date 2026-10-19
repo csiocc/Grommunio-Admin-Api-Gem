@@ -49,18 +49,18 @@ RSpec.describe GrommunioAdminApi::Api::Users do
 
   describe "#get" do
     it "returns nil for properties absent from a single-user response" do
-      stub_get("/domains/12/users/44", user_payload.except("properties"), query: { "level" => "2" })
+      stub_get("/domains/12/users/44", user_payload.except("properties"))
 
-      user = client.users.get(domain_id: 12, user_id: 44, level: 2)
+      user = client.users.get(domain_id: 12, user_id: 44)
 
       expect(user.properties).to be_nil
       expect(user.property(:storagequotalimit)).to be_nil
     end
 
     it "gets one user with all declared fields and raw preservation" do
-      stub_get("/domains/12/users/44", user_payload, query: { "level" => "2" })
+      stub_get("/domains/12/users/44", user_payload)
 
-      user = client.users.get(domain_id: 12, user_id: 44, level: 2)
+      user = client.users.get(domain_id: 12, user_id: 44)
 
       expect(user).to have_attributes(
         id: 44, username: "user@asc-test.ch", domain_id: 12, organization_id: 12,
