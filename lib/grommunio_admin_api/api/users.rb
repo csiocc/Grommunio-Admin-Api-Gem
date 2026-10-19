@@ -19,18 +19,13 @@ module GrommunioAdminApi
 
       # GET /domains/{domainID}/users/{userID}
       #
-      # The upstream endpoint returns no property bag, regardless of level.
-      # Use {#list} or {#all} with properties: to read properties. For a
-      # single user, pass username: as an exact filter on those list calls.
-      #
-      # @example Read a quota for one user through the list endpoint
-      #   user = client.users.list(domain_id: 12, username: "user@example.com",
-      #                            properties: "storagequotalimit").first
-      #   user&.property(:storagequotalimit)
+      # Returns the full user including its property bag. Takes no level:
+      # upstream reads the detail level as a string, so any level sent
+      # yields an empty object; the default is already the most detailed.
       #
       # @return [Resources::User]
-      def get(domain_id:, user_id:, level: nil)
-        body = connection.request(:get, "/domains/#{domain_id}/users/#{user_id}", query: { level: level })
+      def get(domain_id:, user_id:)
+        body = connection.request(:get, "/domains/#{domain_id}/users/#{user_id}")
         Resources::User.new(body)
       end
 
