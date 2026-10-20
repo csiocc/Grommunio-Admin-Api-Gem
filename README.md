@@ -28,6 +28,7 @@ client = GrommunioAdminApi::Client.new(
 
 client.status                                  # service health
 client.about                                   # API/backend version diagnostics
+client.license                                 # License: seats and validity
 
 client.organizations.list(limit: 50)           # List<Organization>
 client.organizations.get(organization_id: 12)  # Organization
@@ -153,6 +154,7 @@ token cannot be logged by accident.
 | `client.login!` | `POST /login` |
 | `client.status` | `GET /status` |
 | `client.about` | `GET /about` |
+| `client.license` | `GET /system/license` |
 | `client.organizations.list` | `GET /system/orgs` |
 | `client.organizations.get` | `GET /system/orgs/{ID}` |
 | `client.domains.list` | `GET /system/domains` |

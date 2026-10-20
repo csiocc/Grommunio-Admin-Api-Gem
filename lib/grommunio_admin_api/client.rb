@@ -34,6 +34,13 @@ module GrommunioAdminApi
       @connection.request(:get, "/about")
     end
 
+    # GET /system/license — seats and validity of the instance license.
+    #
+    # @return [Resources::License]
+    def license
+      Resources::License.new(@connection.request(:get, "/system/license"))
+    end
+
     # Never exposes password, JWT, or CSRF token.
     def inspect
       "#<#{self.class.name} #{@connection.inspect}>"

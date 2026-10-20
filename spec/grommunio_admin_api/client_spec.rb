@@ -37,5 +37,21 @@ RSpec.describe GrommunioAdminApi::Client do
       expect(build_client.about).to eq("API" => 1, "backend" => "1.0")
       expect(about).to have_been_requested.once
     end
+
+    it "reads the instance license via GET /system/license" do
+      stub_login
+      license = stub_get("/system/license", { "product" => "Business", "maxUsers" => 150, "currentUsers" => 120,
+                                              "notBefore" => "2026-03-12 00:00:00",
+                                              "notAfter" => "2027-03-12 23:59:59",
+                                              "certificate" => "/api/v1/system/license/certificate.pem" })
+
+      result = build_client.license
+
+      expect(result).to be_a(GrommunioAdminApi::Resources::License)
+      expect(result).to have_attributes(product: "Business", max_users: 150, current_users: 120,
+                                        not_before: "2026-03-12 00:00:00", not_after: "2027-03-12 23:59:59",
+                                        certificate: "/api/v1/system/license/certificate.pem")
+      expect(license).to have_been_requested.once
+    end
   end
 end

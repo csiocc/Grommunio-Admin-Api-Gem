@@ -14,6 +14,10 @@ RSpec.describe "live V1 reads", :live do
     expect(client.status).to be_a(Hash)
     expect(client.about).to include("API")
 
+    license = client.license
+    expect(license.max_users).to be_a(Integer)
+    expect(license.not_after).to match(/\A\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\z/)
+
     organization = client.organizations.get(organization_id: live_organization_id)
     expect(organization.id).to eq(live_organization_id)
 
