@@ -6,6 +6,7 @@ V1_OPERATIONS = {
   "POST /login" => "Client#login!",
   "GET /status" => "Client#status",
   "GET /about" => "Client#about",
+  "GET /system/license" => "Client#license",
   "GET /system/orgs" => "Organizations#list",
   "GET /system/orgs/{ID}" => "Organizations#get",
   "GET /system/domains" => "Domains#list",
@@ -88,7 +89,7 @@ RSpec.describe "V1 API surface" do
 
   it "exposes exactly the declared public methods, and nothing else" do
     allowed = {
-      "Client" => %i[login! status about mode organizations domains users ldap mailing_lists],
+      "Client" => %i[login! status about license mode organizations domains users ldap mailing_lists],
       "Organizations" => %i[list get all],
       "Domains" => %i[list get all dns_check],
       "Users" => %i[list get all downsync create update delegates set_delegates sendas set_sendas
