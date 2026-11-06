@@ -10,9 +10,13 @@ module GrommunioAdminApi
       # @param username [String, nil] exact username filter
       # @param properties [String, nil] comma-separated list of user
       #   properties to include in the response (e.g. "displayname,smtpaddress")
+      # @param sort [String, Array<String>, nil] "field" or "field,desc"; an
+      #   array sorts by several fields in order. Without it upstream sends no
+      #   ORDER BY, so page order is not guaranteed. Unknown fields are ignored
+      #   silently - the supported ones are listed in the README.
       # @return [List<Resources::User>]
-      def list(domain_id:, level: nil, limit: nil, offset: nil, username: nil, properties: nil)
-        query = { level: level, limit: limit, offset: offset, username: username, properties: properties }
+      def list(domain_id:, level: nil, limit: nil, offset: nil, username: nil, properties: nil, sort: nil)
+        query = { level: level, limit: limit, offset: offset, username: username, properties: properties, sort: sort }
         body = connection.request(:get, "/domains/#{domain_id}/users", query: query)
         List.new(body, resource_class: Resources::User)
       end
@@ -30,12 +34,14 @@ module GrommunioAdminApi
       end
 
       # Lazily enumerates every user of one domain across all pages, applying
-      # the same filters as #list.
+      # the same filters as #list. Offset paging only stays consistent across
+      # pages under a stable order, so pass sort: "ID" when that matters.
       #
       # @return [Enumerator::Lazy<Resources::User>]
-      def all(domain_id:, level: nil, username: nil, properties: nil, page_size: Pagination::DEFAULT_PAGE_SIZE)
+      def all(domain_id:, level: nil, username: nil, properties: nil, sort: nil,
+              page_size: Pagination::DEFAULT_PAGE_SIZE)
         Pagination.each_item(page_size: page_size) do |limit, offset|
-          list(domain_id: domain_id, level: level, username: username, properties: properties,
+          list(domain_id: domain_id, level: level, username: username, properties: properties, sort: sort,
                limit: limit, offset: offset)
         end
       end

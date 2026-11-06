@@ -35,5 +35,8 @@ RSpec.describe "live V1 reads", :live do
     users = client.users.list(domain_id: live_domain_id, limit: 2)
     expect(users.size).to be <= 2
     users.each { |user| expect(user.id).to be_a(Integer) }
+
+    ids = client.users.list(domain_id: live_domain_id, limit: 5, sort: "ID,desc").map(&:id)
+    expect(ids).to eq(ids.sort.reverse)
   end
 end

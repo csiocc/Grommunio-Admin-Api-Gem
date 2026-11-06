@@ -45,6 +45,14 @@ RSpec.describe GrommunioAdminApi::Api::Users do
       expect(list).to have_been_requested.once
       expect(user.property(:displayname)).to eq("Test User")
     end
+
+    it "sends one sort parameter per field, in the given order" do
+      list = stub_get("/domains/12/users?sort=status,desc&sort=ID", { "count" => 0, "data" => [] })
+
+      client.users.list(domain_id: 12, sort: ["status,desc", "ID"])
+
+      expect(list).to have_been_requested.once
+    end
   end
 
   describe "#get" do
@@ -84,14 +92,15 @@ RSpec.describe GrommunioAdminApi::Api::Users do
     end
 
     it "forwards the list filters to every page request" do
-      query = { "level" => "2", "username" => "user@asc-test.ch", "properties" => "displayname,smtpaddress" }
+      query = { "level" => "2", "username" => "user@asc-test.ch", "properties" => "displayname,smtpaddress",
+                "sort" => "ID" }
       page1 = stub_get("/domains/12/users", { "count" => 3, "data" => [{ "ID" => 1 }, { "ID" => 2 }] },
                        query: query.merge("limit" => "2", "offset" => "0"))
       page2 = stub_get("/domains/12/users", { "count" => 3, "data" => [{ "ID" => 3 }] },
                        query: query.merge("limit" => "2", "offset" => "2"))
 
       users = client.users.all(domain_id: 12, level: 2, username: "user@asc-test.ch",
-                               properties: "displayname,smtpaddress", page_size: 2).to_a
+                               properties: "displayname,smtpaddress", sort: "ID", page_size: 2).to_a
 
       expect(users.map(&:id)).to eq([1, 2, 3])
       expect(page1).to have_been_requested.once

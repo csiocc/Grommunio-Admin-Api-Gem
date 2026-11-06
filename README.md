@@ -37,6 +37,7 @@ client.domains.all(organization_ids: [12])     # lazy pagination over all pages
 client.users.list(domain_id: 12, level: 2)     # List<User>
 client.users.get(domain_id: 12, user_id: 44)   # User
 client.users.all(domain_id: 12, level: 2)      # every user of one domain
+client.users.all(domain_id: 12, sort: "ID")    # same, in a stable order across pages
 
 # Raw DNS lookup results of one domain, from the server's own resolver
 # (internal_dns) and the external resolvers (external_dns). Nothing is
@@ -206,6 +207,28 @@ enumerator that fetches pages of `page_size`
 continues until that total is reached; a short page ends the run only when
 no total is available, so a server that clamps the requested limit cannot
 cause silent truncation. An empty page always ends the run.
+
+Paging is offset-based, and upstream sends no `ORDER BY` unless a `sort` is
+given, so the row order across pages is whatever the database returns.
+
+### Sorting users
+
+`users.list` and `users.all` take `sort:`, a `"field"` or `"field,desc"`
+string, or an array of them to sort by several fields in order. Upstream
+ignores an unknown field without an error, so a typo silently yields the
+unsorted order. Verified on a live instance:
+
+| Field | Note |
+|---|---|
+| `ID` | the only unique key; use it for a stable order across pages |
+| `username` | |
+| `status` | many ties, add `ID` as a second field for a stable order |
+| `lang` | many ties, as above |
+| `displayname`, `smtpaddress` | any user property tag; sorts on the stored value |
+| `domainID`, `orgID` | accepted, but constant within one domain |
+
+The bundled OpenAPI spec lists only `ID`, `username`, `domainID` and the
+boolean privilege flags; the live server accepts the wider set above.
 
 ### Immutable resources and raw access
 
