@@ -32,6 +32,9 @@ RSpec.describe "live V1 reads", :live do
     expect(dns_check).to be_a(GrommunioAdminApi::Resources::DnsCheck)
     expect(dns_check.key?("mxRecords")).to be(true)
 
+    store_props = client.domains.store_props(domain_id: live_domain_id, properties: "messagesizeextended")
+    expect(store_props["messagesizeextended"]).to be_a(Integer)
+
     users = client.users.list(domain_id: live_domain_id, limit: 2)
     expect(users.size).to be <= 2
     users.each { |user| expect(user.id).to be_a(Integer) }

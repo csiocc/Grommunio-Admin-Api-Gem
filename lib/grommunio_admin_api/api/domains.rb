@@ -40,6 +40,21 @@ module GrommunioAdminApi
         Resources::DnsCheck.new(connection.request(:get, "/domains/#{domain_id}/dnsCheck"))
       end
 
+      # GET /system/domains/{domainID}/storeProps
+      #
+      # @param properties [String, nil] comma-separated list of store
+      #   properties; without it upstream returns every property of the store
+      # @return [Resource] property name (lower case) => value
+      def store_props(domain_id:, properties: nil)
+        path = "/system/domains/#{domain_id}/storeProps"
+        body = connection.request(:get, path, query: { properties: properties })
+        unless body.is_a?(Hash) && body["data"].is_a?(Hash)
+          raise ParseError, "GET #{path}: expected a {\"data\" => {...}} object"
+        end
+
+        Resource.new(body["data"])
+      end
+
       # Lazily enumerates every domain across all pages, applying the same
       # filters as #list.
       #

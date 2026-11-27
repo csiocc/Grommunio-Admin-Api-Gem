@@ -11,6 +11,7 @@ V1_OPERATIONS = {
   "GET /system/orgs/{ID}" => "Organizations#get",
   "GET /system/domains" => "Domains#list",
   "GET /system/domains/{domainID}" => "Domains#get",
+  "GET /system/domains/{domainID}/storeProps" => "Domains#store_props",
   "GET /domains/{domainID}/dnsCheck" => "Domains#dns_check",
   "GET /domains/{domainID}/users" => "Users#list",
   "GET /domains/{domainID}/users/{userID}" => "Users#get",
@@ -91,7 +92,7 @@ RSpec.describe "V1 API surface" do
     allowed = {
       "Client" => %i[login! status about license mode organizations domains users ldap mailing_lists],
       "Organizations" => %i[list get all],
-      "Domains" => %i[list get all dns_check],
+      "Domains" => %i[list get all dns_check store_props],
       "Users" => %i[list get all downsync create update delegates set_delegates sendas set_sendas
                     store_access grant_store_access set_store_access revoke_store_access],
       "Ldap" => %i[search import_user downsync_domain],
