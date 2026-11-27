@@ -124,4 +124,40 @@ RSpec.describe GrommunioAdminApi::Api::Domains do
 
     expect { build_client(mode: :read_only).domains.dns_check(domain_id: 12) }.not_to raise_error
   end
+
+  describe "#store_props" do
+    it "reads the requested properties of the public store in read_only mode" do
+      stub = stub_get("/system/domains/12/storeProps", { "data" => { "messagesizeextended" => 4_096 } },
+                      query: { "properties" => "messagesizeextended" })
+
+      props = build_client(mode: :read_only).domains.store_props(domain_id: 12, properties: "messagesizeextended")
+
+      expect(stub).to have_been_requested.once
+      expect(props).to be_a(GrommunioAdminApi::Resource)
+      expect(props["messagesizeextended"]).to eq(4_096)
+    end
+
+    it "sends no properties parameter when none are asked for" do
+      stub = stub_get("/system/domains/12/storeProps",
+                      { "data" => { "messagesizeextended" => 0, "storagequotalimit" => 10 } })
+
+      props = client.domains.store_props(domain_id: 12)
+
+      expect(stub).to have_been_requested.once
+      expect(props.to_h.keys).to contain_exactly("messagesizeextended", "storagequotalimit")
+    end
+
+    it "raises NotFoundError on a server without the endpoint" do
+      stub_request(:get, "#{ApiHelpers::BASE}/system/domains/12/storeProps").to_return(status: 404, body: "")
+
+      expect { client.domains.store_props(domain_id: 12) }.to raise_error(GrommunioAdminApi::NotFoundError)
+    end
+
+    it "raises ParseError for an answer without a data object" do
+      stub_get("/system/domains/12/storeProps", { "message" => "ok" })
+
+      expect { client.domains.store_props(domain_id: 12) }
+        .to raise_error(GrommunioAdminApi::ParseError, %r{GET /system/domains/12/storeProps})
+    end
+  end
 end

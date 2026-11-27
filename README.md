@@ -34,6 +34,7 @@ client.organizations.list(limit: 50)           # List<Organization>
 client.organizations.get(organization_id: 12)  # Organization
 client.domains.list(organization_ids: [12])    # List<Domain>
 client.domains.all(organization_ids: [12])     # lazy pagination over all pages
+client.domains.store_props(domain_id: 12, properties: "messagesizeextended")  # Resource: public store properties
 client.users.list(domain_id: 12, level: 2)     # List<User>
 client.users.get(domain_id: 12, user_id: 44)   # User
 client.users.all(domain_id: 12, level: 2)      # every user of one domain
@@ -160,6 +161,7 @@ token cannot be logged by accident.
 | `client.organizations.get` | `GET /system/orgs/{ID}` |
 | `client.domains.list` | `GET /system/domains` |
 | `client.domains.get` | `GET /system/domains/{domainID}` |
+| `client.domains.store_props` | `GET /system/domains/{domainID}/storeProps` |
 | `client.domains.dns_check` | `GET /domains/{domainID}/dnsCheck` |
 | `client.users.list` | `GET /domains/{domainID}/users` |
 | `client.users.get` | `GET /domains/{domainID}/users/{userID}` |

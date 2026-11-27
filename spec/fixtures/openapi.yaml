@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: grommunio Admin API
   description: grommunio administration REST API
-  version: 1.20.0
+  version: 1.22.0
 servers:
   - url: '/api/v1'
     description: Default deployment path
@@ -31,6 +31,9 @@ paths:
                   tasq:
                     type: boolean
                     description: Whether the TasQ server is running
+                  oidc:
+                    type: boolean
+                    description: Whether single sign-on via OpenID Connect is available on the requested origin
 
   /about:
     get:
@@ -92,6 +95,98 @@ paths:
           $ref: '#/components/responses/InvalidRequest'
         '401':
           description: Login failed
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/DatabaseError'
+
+  /logout:
+    post:
+      summary: Logout user
+      description: Revoke the session token and clear the session cookie
+      operationId: postLogout
+      tags:
+        - Misc
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+
+  /login/oidc:
+    get:
+      summary: Start single sign-on login
+      description: Redirects the browser to the authorization endpoint of the configured OpenID Connect provider,
+        which sends it back to `/login/oidc/callback` after authentication.
+      operationId: getOidcLogin
+      tags:
+        - Misc
+      responses:
+        '302':
+          description: Redirect to the provider
+        '404':
+          description: Single sign-on is not enabled or not available on the requested origin
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '500':
+          $ref: '#/components/responses/ServerError'
+
+  /login/oidc/callback:
+    get:
+      summary: Complete single sign-on login
+      description: Exchanges the authorization code and verifies the ID token. On success the API token is set as
+        `grommunioAuthJwt` cookie and the browser is redirected to `/login?sso=1`, otherwise to
+        `/login?sso_error=<reason>`.
+      operationId: getOidcCallback
+      tags:
+        - Misc
+      parameters:
+        - name: code
+          description: Authorization code issued by the provider
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: state
+          description: State value of the login request
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error
+          description: Error code reported by the provider
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: error_description
+          description: Error description reported by the provider
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to the login page
+        '404':
+          description: Single sign-on is not enabled
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
         '500':
           $ref: '#/components/responses/ServerError'
         '503':
@@ -168,6 +263,8 @@ paths:
   /passwd/{username}:
     put:
       summary: Change user password
+      description: Resetting any user requires the ResetPasswd permission. Domain and organization admins can only reset
+        users of their domains, other users are reported as not found. Use `/passwd` to change the own password.
       operationId: resetPasswd
       tags:
         - Misc
@@ -192,6 +289,8 @@ paths:
           description: Password updated
         '400':
           $ref: '#/components/responses/InvalidRequest'
+        '403':
+          description: Insufficient permissions
         '404':
           $ref: "#/components/responses/NotFound"
         '500':
@@ -202,6 +301,8 @@ paths:
   /users:
     get:
       summary: Get list of usernames
+      description: Lists the users available for `/passwd/{username}`. Domain and organization admins only get the users
+        of their domains.
       operationId: getUsernames
       tags:
         - Misc
@@ -225,6 +326,8 @@ paths:
                           type: string
         '400':
           $ref: '#/components/responses/InvalidRequest'
+        '403':
+          description: Insufficient permissions
         '500':
           $ref: '#/components/responses/ServerError'
         '503':
@@ -1047,9 +1150,41 @@ paths:
         '503':
           $ref: '#/components/responses/DatabaseError'
 
+  /system/domains/{domainID}/storeProps:
+    get:
+      summary: Get domain store properties
+      operationId: getDomainStoreProps
+      tags:
+        - Domain Admin/Domains
+      security:
+        - JWTCookie: []
+      parameters:
+        - $ref: '#/components/parameters/domainID'
+        - $ref: '#/components/parameters/propnames'
+      responses:
+        '200':
+          description: Property values returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/propvals'
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/DatabaseError'
+
   /system/users:
     get:
       summary: Get list of all users
+      description: Requires read-only system admin permissions. Organization admins can only list the users of their
+        organization and have to specify it with `orgID`.
       operationId: getAllUsers
       tags:
         - System Admin/Domains
@@ -1064,6 +1199,12 @@ paths:
         - $ref: '#/components/parameters/filterProp'
         - $ref: '#/components/parameters/matchProps'
         - $ref: '#/components/parameters/propnames'
+        - name: orgID
+          description: Filter by organization ID
+          in: query
+          explode: false
+          schema:
+            $ref: '#/components/schemas/intList'
         - name: mlist
           description: Hide MList users
           in: query
@@ -1085,6 +1226,8 @@ paths:
                       $ref: '#/components/schemas/user'
         '400':
           $ref: '#/components/responses/InvalidRequest'
+        '403':
+          description: Insufficient permissions
         '500':
           $ref: '#/components/responses/ServerError'
         '503':
@@ -1817,9 +1960,7 @@ paths:
               type: object
               properties:
                 permissions:
-                  type: array
-                  items:
-                    type: number
+                  type: number
                 recursive:
                   type: boolean
                 username:
@@ -1876,6 +2017,61 @@ paths:
           $ref: '#/components/responses/InvalidRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/DatabaseError'
+    
+  /system/exmdb/{username}/folders/{fid}/permissions/{permittedUser}:
+    patch:
+      summary: Add new member
+      operationId: postUserFolderPermissionsGrant
+      tags:
+        - exmdb
+      security:
+        - JWTCookie: []
+      parameters:
+        - $ref: '#/components/parameters/CSRFToken'
+        - name: username
+          in: path
+          description: User email
+          required: true
+          schema:
+            type: string
+        - name: fid
+          in: path
+          description: Folder ID
+          required: true
+          schema:
+            type: integer
+        - name: permittedUser
+          in: path
+          description: Permitted user email
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                permissions:
+                  type: number
+                recursive:
+                  type: boolean
+      responses:
+        '200':
+          description: Permission granted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
         '500':
           $ref: '#/components/responses/ServerError'
         '503':
@@ -2119,6 +2315,12 @@ paths:
           description: Name of the key selector
           schema:
             type: string
+        - name: mode
+          in: query
+          required: false
+          description: Output mode of the public key
+          schema:
+            type: string
       responses:
         '200':
           description: Dkim keys returned
@@ -2126,6 +2328,111 @@ paths:
             application/json:
               schema:
                 type: string
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/DatabaseError'
+
+  /domains/{domainID}/disabledPlugins:
+    get:
+      summary: Get list of disabled plugins of domain
+      operationId: getDisabledPlugins
+      tags:
+        - Misc
+      security:
+        - JWTCookie: []
+      parameters:
+        - $ref: '#/components/parameters/domainID'
+        - name: username
+          in: query
+          description: Full email of user
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of disabled plugins returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/DatabaseError'
+    put:
+      summary: Update list of disabled plugins of domain
+      operationId: setDisabledPlugins
+      tags:
+        - Misc
+      security:
+        - JWTCookie: []
+      parameters:
+        - $ref: '#/components/parameters/domainID'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+      responses:
+        '200':
+          description: Plugins updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/InvalidRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/ServerError'
+        '503':
+          $ref: '#/components/responses/DatabaseError'
+      
+  /disabledPluginsOfUser:
+    get:
+      summary: Get list of disabled plugins of user
+      operationId: disabledPluginsOfUser
+      tags:
+        - Misc
+      parameters:
+        - name: username
+          in: query
+          description: Full email of user
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of disabled plugins returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: string
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '404':
@@ -2157,7 +2464,7 @@ paths:
           in: query
           schema:
             type: string
-            pattern: '^(ID|username|domainID|pop3_imap|smtp|changePassword|publicAddress|privChat|privVideo|privFiles|privArchive|privWeb|privEas|privDav)(,(a|de)sc)?$'
+            pattern: '^[a-zA-Z]+(,(a|de)sc)?$'
         - $ref: '#/components/parameters/filterID'
         - name: username
           description: Filter by username
@@ -2271,6 +2578,9 @@ paths:
                 $ref: '#/components/schemas/user'
         '400':
           $ref: '#/components/responses/InvalidRequest'
+        '403':
+          description: Insufficient permissions, or `username`, `ldapID` or `altnames` of a user holding permissions the
+            caller does not have would be changed
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -2305,10 +2615,24 @@ paths:
       responses:
         '200':
           description: User deleted
+        '202':
+          description: Mailbox store still in use, user marked as deleted and deletion continued in a background task
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  taskID:
+                    description: ID of the background task
+                    type: integer
         '400':
           $ref: '#/components/responses/InvalidRequest'
         '404':
           $ref: '#/components/responses/NotFound'
+        '409':
+          description: Mailbox store in use and the deletion cannot be continued in the background
         '500':
           $ref: '#/components/responses/ServerError'
         '503':
@@ -2870,6 +3194,8 @@ paths:
           description: User password updated
         '400':
           $ref: '#/components/responses/InvalidRequest'
+        '403':
+          description: Insufficient permissions, or the user holds permissions the caller does not have
         '404':
           $ref: '#/components/responses/NotFound'
         '500':
@@ -3675,6 +4001,8 @@ paths:
                 $ref: '#/components/schemas/user'
         '400':
           $ref: '#/components/responses/InvalidRequest'
+        '403':
+          description: Insufficient permissions, or `force` would link a user holding permissions the caller does not have
         '404':
           $ref: '#/components/responses/NotFound'
         '409':
@@ -3758,6 +4086,31 @@ paths:
                         ID:
                           $ref: '#/components/schemas/ID'
                         username:
+                          type: string
+                  pending:
+                    description: Users whose mailbox store is still in use, marked as deleted and deleted by a background task
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ID:
+                          $ref: '#/components/schemas/ID'
+                        username:
+                          type: string
+                        taskID:
+                          description: ID of the background task
+                          type: integer
+                  failed:
+                    description: Users that could not be deleted
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ID:
+                          $ref: '#/components/schemas/ID'
+                        username:
+                          type: string
+                        message:
                           type: string
         '400':
           $ref: '#/components/responses/InvalidRequest'
@@ -5157,6 +5510,8 @@ components:
           readOnly: True
         maxUser:
           type: integer
+          minimum: 1
+          multipleOf: 1
         title:
           type: string
           maxLength: 128
@@ -5193,7 +5548,8 @@ components:
           nullable: true
         chat:
           type: boolean
-          description: Whether chat is enabled for this domain
+          nullable: true
+          description: Whether chat is enabled for this domain (null if grommunio-chat is not reachable; ignored on update)
     domain:
       allOf:
         - $ref: '#/components/schemas/domainCommon'
@@ -5430,10 +5786,12 @@ components:
           nullable: true
         chat:
           type: boolean
-          description: Whether chat is enabled for this user
+          nullable: true
+          description: Whether chat is enabled for this user (null if grommunio-chat is not reachable; ignored on update)
         chatAdmin:
           type: boolean
-          description: Whether this user has grommunio-chat admin permissions
+          nullable: true
+          description: Whether this user has grommunio-chat admin permissions (null if grommunio-chat is not reachable; ignored on update)
         lang:
           type: string
           description: User language
@@ -5516,10 +5874,13 @@ components:
           nullable: true
         chat:
           type: boolean
-          description: Whether chat is enabled for this user
+          nullable: true
+          description: Whether chat is enabled for this user (null if grommunio-chat is not reachable; ignored on update)
         chatAdmin:
           type: boolean
-          description: Whether this user has grommunio-chat admin permissions
+          nullable: true
+          description: Whether this user has grommunio-chat admin permissions (null if grommunio-chat is not reachable; ignored on update).
+            Only system admins can set this, it is ignored otherwise.
         lang:
           type: string
           description: User language
@@ -5594,10 +5955,13 @@ components:
           nullable: true
         chat:
           type: boolean
-          description: Whether chat is enabled for this user
+          nullable: true
+          description: Whether chat is enabled for this user (null if grommunio-chat is not reachable; ignored on update)
         chatAdmin:
           type: boolean
-          description: Whether this user has grommunio-chat admin permissions
+          nullable: true
+          description: Whether this user has grommunio-chat admin permissions (null if grommunio-chat is not reachable; ignored on update).
+            Only system admins can set this, it is ignored otherwise.
         lang:
           type: string
           description: User language
